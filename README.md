@@ -1,7 +1,7 @@
 # LiveStreaming-Recording
 LiveStreaming and Recording by using Grestreamer
-Gstreamer-1.0v
-OS-Ubantu-16.04.3
+-------Gstreamer-1.0v
+-------OS-Ubantu-16.04.3
 
 Objective- To make multiple files each of 10 minutes.
 
