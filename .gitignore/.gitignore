@@ -14,7 +14,8 @@
 //unsigned int flag =0;
 
 /* Structure to contain all our information, so we can pass it to callbacks */
-typedef struct _CustomData {
+typedef struct _CustomData 
+{
   GstElement *pipeline;
   GstElement *source;
   GstElement *convert;
@@ -68,11 +69,9 @@ int main(int argc, char *argv[])
         GstMessage *msg;
         time_t t;   
         time(&t);
-       
         CustomData data;
         guint bus_watch_id;
         GstBus *bus;
-        
         GstStateChangeReturn ret;
         gboolean terminate = FALSE;
         char cam2[9]="cam2";
@@ -83,16 +82,15 @@ int main(int argc, char *argv[])
         data.convert = gst_element_factory_make ("videoconvert", "convert");
         data.sink = gst_element_factory_make ("autovideosink", "sink");
         data.videoconvert1 = gst_element_factory_make("videoconvert", "videoconvert1");
-	      data.videoconvert2 = gst_element_factory_make("videoconvert", "videoconvert2");
-		    data.queue1 = gst_element_factory_make("queue", "queue1");
-	     	data.queue2 = gst_element_factory_make("queue", "queue2");
-	     	data.tee = gst_element_factory_make("tee", "tee");
-	
-	     	data.frameratefilter = gst_element_factory_make("capsfilter", NULL);
-	     	data.videorate = gst_element_factory_make("videorate", NULL);
-	     	data.avenc = gst_element_factory_make("avenc_mpeg2video", NULL);
-	     	data.avimux = gst_element_factory_make("avimux", NULL);
-		    data.filesink = gst_element_factory_make("filesink", NULL);
+	data.videoconvert2 = gst_element_factory_make("videoconvert", "videoconvert2");
+	data.queue1 = gst_element_factory_make("queue", "queue1");
+	data.queue2 = gst_element_factory_make("queue", "queue2");
+	data.tee = gst_element_factory_make("tee", "tee");
+	data.frameratefilter = gst_element_factory_make("capsfilter", NULL);
+	data.videorate = gst_element_factory_make("videorate", NULL);
+	data.avenc = gst_element_factory_make("avenc_mpeg2video", NULL);
+	data.avimux = gst_element_factory_make("avimux", NULL);
+	data.filesink = gst_element_factory_make("filesink", NULL);
        // data.filesink2 = gst_element_factory_make("filesink2", NULL);
 	
 
@@ -128,29 +126,28 @@ if (!gst_element_link_many(data.queue1, data.videoconvert1, data.sink, NULL))
 	 }
 
         data.qpad1 = gst_element_get_static_pad(data.queue1, "sink");
-	     	data.qpad2 = gst_element_get_static_pad(data.queue2, "sink");
-	     	data.teepad1 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
-	     	g_print ("Obtained request pad %s for queue1 branch.\n", gst_pad_get_name (data.teepad1));
-	     	data.teepad2 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
-	     	g_print ("Obtained request pad %s for queue2 branch.\n", gst_pad_get_name (data.teepad2));
+	data.qpad2 = gst_element_get_static_pad(data.queue2, "sink");
+	data.teepad1 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
+	g_print ("Obtained request pad %s for queue1 branch.\n", gst_pad_get_name (data.teepad1));
+	data.teepad2 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
+	g_print ("Obtained request pad %s for queue2 branch.\n", gst_pad_get_name (data.teepad2));
 
 	if(!data.teepad1 || !data.teepad2 || !data.qpad1 || !data.qpad2){
 		g_error("Creation of one tee pad failed.");
 		return;
 	}
 
-	     	gst_pad_link (data.teepad1, data.qpad1);
-	     	gst_pad_link (data.teepad2, data.qpad2);
+	gst_pad_link (data.teepad1, data.qpad1);
+	gst_pad_link (data.teepad2, data.qpad2);
+	gst_object_unref (GST_OBJECT (data.qpad1));
+	gst_object_unref (GST_OBJECT (data.qpad2));
+	gst_object_unref (GST_OBJECT (data.teepad1));
+	gst_object_unref (GST_OBJECT (data.teepad2));
 
-	     	gst_object_unref (GST_OBJECT (data.qpad1));
-	     	gst_object_unref (GST_OBJECT (data.qpad2));
-	     	gst_object_unref (GST_OBJECT (data.teepad1));
-	     	gst_object_unref (GST_OBJECT (data.teepad2));
-
-	     	// Output a dot file of the pipeline
-	     	// Be sure to $ export GST_DEBUG_DUMP_DOT_DIR=/tmp
-	     	// and run with the --gst-enable-gst-debug command line switch
-		     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(data.pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline_graph");
+	// Output a dot file of the pipeline
+	// Be sure to $ export GST_DEBUG_DUMP_DOT_DIR=/tmp
+	// and run with the --gst-enable-gst-debug command line switch
+	GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(data.pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline_graph");
 
 
   /* Set the URI to play */
@@ -184,37 +181,38 @@ if (!gst_element_link_many(data.queue1, data.videoconvert1, data.sink, NULL))
 
 void * camera2(void * u)
 
-{
-         char cam1[20]="cam1";
-         time_t t;   
-         time(&t);
-         CustomData data;
-         guint bus_watch_id;
-         GstBus *bus;
-         GstMessage *msg;
-         GstStateChangeReturn ret;
-         gboolean terminate = FALSE;
+{	
+   char cam1[20]="cam1";
+
+
+        time_t t;   
+        time(&t);
+        CustomData data;
+        guint bus_watch_id;
+        GstBus *bus;
+        GstMessage *msg;
+        GstStateChangeReturn ret;
+        gboolean terminate = FALSE;
         /* Create the elements */
         data.source = gst_element_factory_make ("uridecodebin", "source");
         data.convert = gst_element_factory_make ("videoconvert", "convert");
         data.sink = gst_element_factory_make ("autovideosink", "sink");
         data.videoconvert1 = gst_element_factory_make("videoconvert", "videoconvert1");
-	      data.videoconvert2 = gst_element_factory_make("videoconvert", "videoconvert2");
-	      data.queue1 = gst_element_factory_make("queue", "queue1");
-	      data.queue2 = gst_element_factory_make("queue", "queue2");
-	      data.tee = gst_element_factory_make("tee", "tee");
-	
-	      data.frameratefilter = gst_element_factory_make("capsfilter", NULL);
-	      data.videorate = gst_element_factory_make("videorate", NULL);
-	      data.avenc = gst_element_factory_make("avenc_mpeg2video", NULL);
-	      data.avimux = gst_element_factory_make("avimux", NULL);
-	      data.filesink = gst_element_factory_make("filesink", NULL);
+	data.videoconvert2 = gst_element_factory_make("videoconvert", "videoconvert2");
+	data.queue1 = gst_element_factory_make("queue", "queue1");
+	data.queue2 = gst_element_factory_make("queue", "queue2");
+	data.tee = gst_element_factory_make("tee", "tee");
+	data.frameratefilter = gst_element_factory_make("capsfilter", NULL);
+	data.videorate = gst_element_factory_make("videorate", NULL);
+	data.avenc = gst_element_factory_make("avenc_mpeg2video", NULL);
+	data.avimux = gst_element_factory_make("avimux", NULL);
+	data.filesink = gst_element_factory_make("filesink", NULL);
         
 	
 
-       do{ /* Create the empty pipeline */
-        data.pipeline = gst_pipeline_new ("test-pipeline");
-      
+ do{ /* Create the empty pipeline */
+  data.pipeline = gst_pipeline_new ("test-pipeline");
+
   if (!data.pipeline || !data.source || !data.convert || !data.videoconvert1 || !data.videoconvert2 || !data.queue1 || !data.queue2 || !data.tee || !data.sink || !data.filesink ) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
@@ -222,7 +220,7 @@ void * camera2(void * u)
 
         g_object_set(G_OBJECT(data.filesink), "location", strcat(cam1,ctime(&t)), "async", 0, NULL);
 
-      	g_object_set(G_OBJECT(data.frameratefilter), "caps", gst_caps_from_string("video/x-raw,framerate=50/1"), NULL);
+	g_object_set(G_OBJECT(data.frameratefilter), "caps", gst_caps_from_string("video/x-raw,framerate=50/1"), NULL);
        // g_object_set(data.avenc, "bitrate", 4096, NULL); 
 
   /* Build the pipeline. Note that we are NOT linking the source at this
@@ -244,23 +242,23 @@ if (!gst_element_link_many(data.queue1, data.videoconvert1, data.sink, NULL))
 	 }
 
         data.qpad1 = gst_element_get_static_pad(data.queue1, "sink");
-      	data.qpad2 = gst_element_get_static_pad(data.queue2, "sink");
-	      data.teepad1 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
-	      g_print ("Obtained request pad %s for queue1 branch.\n", gst_pad_get_name (data.teepad1));
-	      data.teepad2 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
-	      g_print ("Obtained request pad %s for queue2 branch.\n", gst_pad_get_name (data.teepad2));
-        
-  if(!data.teepad1 || !data.teepad2 || !data.qpad1 || !data.qpad2){
+	data.qpad2 = gst_element_get_static_pad(data.queue2, "sink");
+	data.teepad1 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
+	g_print ("Obtained request pad %s for queue1 branch.\n", gst_pad_get_name (data.teepad1));
+	data.teepad2 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
+	g_print ("Obtained request pad %s for queue2 branch.\n", gst_pad_get_name (data.teepad2));
+
+	if(!data.teepad1 || !data.teepad2 || !data.qpad1 || !data.qpad2){
 		g_error("Creation of one tee pad failed.");
 		return;
 	}
 
-      	gst_pad_link (data.teepad1, data.qpad1);
-	      gst_pad_link (data.teepad2, data.qpad2);
-	      gst_object_unref (GST_OBJECT (data.qpad1));
-	      gst_object_unref (GST_OBJECT (data.qpad2));
-	      gst_object_unref (GST_OBJECT (data.teepad1));
-	      gst_object_unref (GST_OBJECT (data.teepad2));
+	gst_pad_link (data.teepad1, data.qpad1);
+	gst_pad_link (data.teepad2, data.qpad2);
+	gst_object_unref (GST_OBJECT (data.qpad1));
+	gst_object_unref (GST_OBJECT (data.qpad2));
+	gst_object_unref (GST_OBJECT (data.teepad1));
+	gst_object_unref (GST_OBJECT (data.teepad2));
 
 	// Output a dot file of the pipeline
 	// Be sure to $ export GST_DEBUG_DUMP_DOT_DIR=/tmp
