@@ -269,7 +269,7 @@ if (!gst_element_link_many(data.queue1, data.videoconvert1, data.sink, NULL))
 
 
   /* Set the URI to play */
-  g_object_set (data.source, "uri", "rtsp://admin:admin@192.168.1.251:80", NULL);
+  g_object_set (data.source, "uri", "rtsp://admin:admin@IP:Port", NULL);
 
   /* Connect to the pad-added signal */
   g_signal_connect (data.source, "pad-added", G_CALLBACK (pad_added_handler), &data);
