@@ -13,4 +13,4 @@ two files.
 So how to disconnect a thread from a particular file and make a new file recursively after 10 mintues?
 
 It can be done by using multifilesink element in gstreamer but i m not able to make a use of it and that's why i m trying to 
-do it by help of threads.
+do it with the help of threads only.
