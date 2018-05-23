@@ -38,10 +38,11 @@ typedef struct _CustomData
 
  void * camera1(void * u);
  void * camera2(void * u);
- pthread_t tid,tid2;
+pthread_t tid,tid2;
 
  int i=0;
  int y = 0;
+ //int terminate=0;
 
 int main(int argc, char *argv[])
 
@@ -50,12 +51,19 @@ int main(int argc, char *argv[])
    /* Initialize GStreamer */
    gst_init (&argc, &argv);
    int err,err1;
+
    
- 
+ //while(1)
+//{
   pthread_create(&tid,NULL,&camera1,NULL);
-  pthread_create(&tid2,NULL,&camera2,NULL);
+  //pthread_create(&tid2,NULL,&camera2,NULL);
+  // sleep(1009);
+  //pthread_cancel(tid);
+//printf("main sleeping\n");
+//sleep(500000);
+//}
   pthread_join(tid,NULL); 
-  pthread_join(tid2,NULL); 
+  //pthread_join(tid2,NULL); 
  
   
    return 0;  
@@ -66,6 +74,7 @@ int main(int argc, char *argv[])
   void * camera1(void * u)
 
   {
+	printf("Thread starting....\n");
         GstMessage *msg;
         time_t t;   
         time(&t);
@@ -77,7 +86,9 @@ int main(int argc, char *argv[])
         char cam2[9]="cam2";
       
          /* Create the elements */
-     
+	//int oldstate,oldtype;
+     	//pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &oldstate);
+	//pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &oldtype);
         data.source = gst_element_factory_make ("uridecodebin", "source");
         data.convert = gst_element_factory_make ("videoconvert", "convert");
         data.sink = gst_element_factory_make ("autovideosink", "sink");
@@ -86,25 +97,28 @@ int main(int argc, char *argv[])
 	data.queue1 = gst_element_factory_make("queue", "queue1");
 	data.queue2 = gst_element_factory_make("queue", "queue2");
 	data.tee = gst_element_factory_make("tee", "tee");
+	
 	data.frameratefilter = gst_element_factory_make("capsfilter", NULL);
 	data.videorate = gst_element_factory_make("videorate", NULL);
 	data.avenc = gst_element_factory_make("avenc_mpeg2video", NULL);
 	data.avimux = gst_element_factory_make("avimux", NULL);
-	data.filesink = gst_element_factory_make("filesink", NULL);
+	data.filesink = gst_element_factory_make("multifilesink", "multifilesink");
        // data.filesink2 = gst_element_factory_make("filesink2", NULL);
 	
 
-  do{      /* Create the empty pipeline */
+     /* Create the empty pipeline */
        data.pipeline = gst_pipeline_new ("test-pipeline");
 
   if (!data.pipeline || !data.source || !data.convert || !data.videoconvert1 || !data.videoconvert2 || !data.queue1 || !data.queue2 || !data.tee || !data.sink || !data.filesink ) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
   }
-
-        g_object_set(G_OBJECT(data.filesink), "location", strcat(cam2,ctime(&t)), "async", 0, NULL);
+         g_object_set(G_OBJECT(data.frameratefilter), "caps", gst_caps_from_string("video/x-raw,framerate=50/1"), NULL);
+       // g_object_set(G_OBJECT(data.filesink), "location", strcat(cam2,ctime(&t)), "async", 0, NULL);
+	
+       
        // g_object_set(G_OBJECT(data.filesink2), "location", strcat(cam22,ctime(&t)), "async", 0, NULL);
-	g_object_set(G_OBJECT(data.frameratefilter), "caps", gst_caps_from_string("video/x-raw,framerate=50/1"), NULL);
+	
        // g_object_set(data.avenc, "bitrate", 4096, NULL); 
 
   /* Build the pipeline. Note that we are NOT linking the source at this
@@ -139,6 +153,7 @@ if (!gst_element_link_many(data.queue1, data.videoconvert1, data.sink, NULL))
 
 	gst_pad_link (data.teepad1, data.qpad1);
 	gst_pad_link (data.teepad2, data.qpad2);
+
 	gst_object_unref (GST_OBJECT (data.qpad1));
 	gst_object_unref (GST_OBJECT (data.qpad2));
 	gst_object_unref (GST_OBJECT (data.teepad1));
@@ -151,167 +166,83 @@ if (!gst_element_link_many(data.queue1, data.videoconvert1, data.sink, NULL))
 
 
   /* Set the URI to play */
-  g_object_set (data.source, "uri", "rtsp://admin:admin@IP:Port", NULL);
+  g_object_set (data.source, "uri", "rtsp://admin:admin@192.168.1.250:80", NULL);
 
   /* Connect to the pad-added signal */
   g_signal_connect (data.source, "pad-added", G_CALLBACK (pad_added_handler), &data);
 
   /* Start playing */
+printf("start playing..\n");
   ret = gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
   if (ret == GST_STATE_CHANGE_FAILURE) {
     g_printerr ("Unable to set the pipeline to the playing state.\n");
     gst_object_unref (data.pipeline);
     return -1;
   }
+ 
+        g_object_set(G_OBJECT (data.filesink), "post-message", 1, "multifilesink", 0, NULL);
+	g_object_set(G_OBJECT (data.filesink), "next-file", 4, "multifilesink", 0, NULL);
+	g_object_set(G_OBJECT (data.filesink), "max-file-size", 10000000, "multifilesink", 0, NULL);
 
-      usleep(60000000);
-     //  gst_element_set_state (data.pipeline, GST_STATE_PAUSED);
+printf("Thread Start.. Listen to bus\n");
 
-      // gst_object_unref (bus);
-      // gst_object_unref (data.queue2);
-      // gst_object_unref(data.filesink);
-      // gst_element_set_state (data.pipeline, GST_STATE_PAUSED);
-       //gst_object_unref (data.pipeline);
+ /* Listen to the bus */
+  bus = gst_element_get_bus (data.pipeline);
+printf("Bus status fetched\n");
+  do {
+  
+   //sleep(1000);
+   printf("Getting value into msg\n");
+    msg = gst_bus_timed_pop_filtered (bus, GST_CLOCK_TIME_NONE,
+      GST_MESSAGE_STATE_CHANGED | GST_MESSAGE_ERROR | GST_MESSAGE_EOS);
+    //msg=GST_MESSAGE_EOS;
+   printf("Enetring switch case\n");
+    /* Parse message */
+    if (msg != NULL) {
+      GError *err;
+      gchar *debug_info;
+      printf("msg\n");
+      switch (GST_MESSAGE_TYPE (msg)) {
+        case GST_MESSAGE_ERROR:
+          gst_message_parse_error (msg, &err, &debug_info);
+          g_printerr ("Error received from element %s: %s\n", GST_OBJECT_NAME (msg->src), err->message);
+          g_printerr ("Debugging information: %s\n", debug_info ? debug_info : "none");
+          g_clear_error (&err);
+          g_free (debug_info);
+          terminate = TRUE;
+          break;
+        case GST_MESSAGE_EOS:
+          g_print ("End-Of-Stream reached.\n");
+          terminate = TRUE;
+          break;
+        case GST_MESSAGE_STATE_CHANGED:
+          /* We are only interested in state-changed messages from the pipeline */
+          if (GST_MESSAGE_SRC (msg) == GST_OBJECT (data.pipeline)) {
+            GstState old_state, new_state, pending_state;
+            gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
+            g_print ("Pipeline state changed from %s to %s:\n",
+                gst_element_state_get_name (old_state), gst_element_state_get_name (new_state));
+          }
+          break;
+        default:
+          /* We should not reach here */
+          g_printerr ("Unexpected message received.\n");
+          break;
+      }
+      gst_message_unref (msg);
+    }
+printf("value of terminate %d\n",terminate);
+  } while (!terminate);
 
-       //char cam2[9]="camNew";
 
-}while(1);
+  gst_element_set_state (data.pipeline, GST_STATE_NULL);
 
+  gst_object_unref (data.pipeline);
+
+return 0;
 }
 
-void * camera2(void * u)
 
-{	
-   char cam1[20]="cam1";
-
-
-        time_t t;   
-        time(&t);
-        CustomData data;
-        guint bus_watch_id;
-        GstBus *bus;
-        GstMessage *msg;
-        GstStateChangeReturn ret;
-        gboolean terminate = FALSE;
-        /* Create the elements */
-        data.source = gst_element_factory_make ("uridecodebin", "source");
-        data.convert = gst_element_factory_make ("videoconvert", "convert");
-        data.sink = gst_element_factory_make ("autovideosink", "sink");
-        data.videoconvert1 = gst_element_factory_make("videoconvert", "videoconvert1");
-	data.videoconvert2 = gst_element_factory_make("videoconvert", "videoconvert2");
-	data.queue1 = gst_element_factory_make("queue", "queue1");
-	data.queue2 = gst_element_factory_make("queue", "queue2");
-	data.tee = gst_element_factory_make("tee", "tee");
-	data.frameratefilter = gst_element_factory_make("capsfilter", NULL);
-	data.videorate = gst_element_factory_make("videorate", NULL);
-	data.avenc = gst_element_factory_make("avenc_mpeg2video", NULL);
-	data.avimux = gst_element_factory_make("avimux", NULL);
-	data.filesink = gst_element_factory_make("filesink", NULL);
-        
-	
-
- do{ /* Create the empty pipeline */
-  data.pipeline = gst_pipeline_new ("test-pipeline");
-
-  if (!data.pipeline || !data.source || !data.convert || !data.videoconvert1 || !data.videoconvert2 || !data.queue1 || !data.queue2 || !data.tee || !data.sink || !data.filesink ) {
-    g_printerr ("Not all elements could be created.\n");
-    return -1;
-  }
-
-        g_object_set(G_OBJECT(data.filesink), "location", strcat(cam1,ctime(&t)), "async", 0, NULL);
-
-	g_object_set(G_OBJECT(data.frameratefilter), "caps", gst_caps_from_string("video/x-raw,framerate=50/1"), NULL);
-       // g_object_set(data.avenc, "bitrate", 4096, NULL); 
-
-  /* Build the pipeline. Note that we are NOT linking the source at this
-   * point. We will do it later. */
-  gst_bin_add_many (GST_BIN (data.pipeline), data.source, data.convert , data.videoconvert1, data.videoconvert2, data.queue1, data.queue2, data.tee, data.sink, data.frameratefilter, data.videorate, data.avenc, data.avimux, data.filesink, data.filesink3,NULL);
-  if (!gst_element_link (data.convert, data.tee)) {
-    g_printerr ("Elements could not be linked.\n");
-    gst_object_unref (data.pipeline);
-    return -1;
-  }
-if (!gst_element_link_many(data.queue1, data.videoconvert1, data.sink, NULL))
-		g_error("Failed to link display elements!");
-	if (!gst_element_link_many(data.queue2, data.videorate, data.frameratefilter, data.videoconvert2, data.avenc,data.avimux, data.filesink, NULL))
-		g_error("Failed to link save elements!");
-
-	if ( !(data.tee_src_pad_template = gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (data.tee), "src_%u"))) {
-	  g_critical ("Unable to get pad template!");
-	  return;
-	 }
-
-        data.qpad1 = gst_element_get_static_pad(data.queue1, "sink");
-	data.qpad2 = gst_element_get_static_pad(data.queue2, "sink");
-	data.teepad1 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
-	g_print ("Obtained request pad %s for queue1 branch.\n", gst_pad_get_name (data.teepad1));
-	data.teepad2 = gst_element_request_pad (data.tee, data.tee_src_pad_template, NULL, NULL);
-	g_print ("Obtained request pad %s for queue2 branch.\n", gst_pad_get_name (data.teepad2));
-
-	if(!data.teepad1 || !data.teepad2 || !data.qpad1 || !data.qpad2){
-		g_error("Creation of one tee pad failed.");
-		return;
-	}
-
-	gst_pad_link (data.teepad1, data.qpad1);
-	gst_pad_link (data.teepad2, data.qpad2);
-	gst_object_unref (GST_OBJECT (data.qpad1));
-	gst_object_unref (GST_OBJECT (data.qpad2));
-	gst_object_unref (GST_OBJECT (data.teepad1));
-	gst_object_unref (GST_OBJECT (data.teepad2));
-
-	// Output a dot file of the pipeline
-	// Be sure to $ export GST_DEBUG_DUMP_DOT_DIR=/tmp
-	// and run with the --gst-enable-gst-debug command line switch
-	GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(data.pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline_graph");
-
-
-  /* Set the URI to play */
-  g_object_set (data.source, "uri", "rtsp://admin:admin@IP:Port", NULL);
-
-  /* Connect to the pad-added signal */
-  g_signal_connect (data.source, "pad-added", G_CALLBACK (pad_added_handler), &data);
-
-  /* Start playing */
-  ret = gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
-  if (ret == GST_STATE_CHANGE_FAILURE) {
-    g_printerr ("Unable to set the pipeline to the playing state.\n");
-    gst_object_unref (data.pipeline);
-    return -1;
-  }
-
-  /* Listen to the bus */
- // bus = gst_element_get_bus (data.pipeline);
-  //do {
-        usleep(60000000);
-        //gst_element_set_state (data.pipeline, GST_STATE_PAUSED);
-        
-        
-        //int pthread_kill(pthread_t tid, int sig);
-       // pthread_create(&tid,NULL,&camera1,NULL);
-       
-
-//g_object_set(G_OBJECT(data.filesink3), "location", ctime(&t), "async", 0, NULL);
-        
-	//if (!gst_element_link_many(data.queue2, data.videorate, data.frameratefilter, data.videoconvert2, data.avenc,data.avimux,        data.filesink3, NULL))
-		//g_error("Failed to link save elements!");
-
-  //} while (!terminate);
- 
-
-//gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
-  /* Free resources */
- 
- //gst_object_unref (bus);
- // gst_object_unref (data.queue2);
- // gst_object_unref(data.filesink2);
-  //gst_element_set_state (data.pipeline, GST_STATE_PAUSED);
- // gst_object_unref (data.pipeline);
-    //char cam1[20]="camNEWR";
-
-}while(1);
-
-}
 
 /* This function will be called by the pad-added signal */
 static void pad_added_handler (GstElement *src, GstPad *new_pad, CustomData *data) {
